@@ -29,12 +29,19 @@ sudo bocker pull alpine 3.19
 sudo bocker run img_XXXXX /bin/echo 'Hello from bocker'
 ```
 
+The repo is copied to `/vagrant` in the VM with rsync (one-way). After editing
+`bocker` on the host, run `vagrant rsync` to push the changes — or keep
+`vagrant rsync-auto` running in another terminal.
+
 Run the test suite inside the VM:
 
 ```sh
 sudo -i
 cd /vagrant && ./test
 ```
+
+Verified on a Fedora host with `vagrant` + `vagrant-libvirt` (qemu:///session):
+all 8 tests pass.
 
 ## Prerequisites
 
@@ -166,6 +173,9 @@ the ~100-line spirit but makes it run today:
 * **firewall**: no more `iptables --flush`; NAT/forward rules are added
   idempotently and scoped to `10.0.0.0/24`, and the external interface is
   detected from the default route instead of being hard-coded.
+* **exec**: `bocker exec` now finds the container process with `ps -eo`
+  (all processes) instead of `ps o`, which only lists the current session
+  and made `exec` fail when bocker was driven non-interactively.
 
 ## License
 

@@ -94,6 +94,14 @@ Vagrant.configure("2") do |config|
   config.vm.box = "generic/ubuntu2204"
   config.vm.hostname = "bocker-sandbox"
 
+  # vagrant-libvirt does not mount /vagrant on its own. virtiofs/9p/NFS all
+  # need host-side cooperation that qemu:///session + SELinux make painful, so
+  # use rsync: a one-way host->guest copy pushed on `vagrant up`. After editing
+  # files on the host, run `vagrant rsync` (or `vagrant rsync-auto` in a spare
+  # terminal for live push) to resync.
+  config.vm.synced_folder ".", "/vagrant", type: "rsync",
+    rsync__exclude: [".git/", ".vagrant/"]
+
   config.vm.provider "libvirt" do |lv|
     lv.memory = 2048
     lv.cpus = 2

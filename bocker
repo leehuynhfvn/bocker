@@ -101,8 +101,10 @@ function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <comman
 
 function bocker_exec() { #HELP Execute a command in a running container:\nBOCKER exec <container_id> <command>
 	[[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
-	cid="$(ps o ppid,pid | grep "^$(ps o pid,cmd | grep -E "^\ *[0-9]+ unshare.*$1" | awk '{print $1}')" | awk '{print $2}')"
-	[[ ! "$cid" =~ ^\ *[0-9]+$ ]] && echo "Container '$1' exists but is not running" && exit 1
+	unshare_pid="$(ps -eo pid,args | awk -v id="$1" '$0 ~ ("unshare -fmuip.*" id) { print $1; exit }')"
+	[[ -z "$unshare_pid" ]] && echo "Container '$1' exists but is not running" && exit 1
+	cid="$(ps -eo ppid,pid | awk -v p="$unshare_pid" '$1 == p { print $2; exit }')"
+	[[ -z "$cid" ]] && echo "Container '$1' exists but is not running" && exit 1
 	nsenter -t "$cid" -m -u -i -n -p chroot "$btrfs_path/$1" "${@:2}"
 }
 
