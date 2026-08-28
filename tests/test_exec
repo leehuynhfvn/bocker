@@ -6,17 +6,17 @@ img="$(./bocker init ~/base-image | awk '{print $2}')"
 [[ "$?" == 0 ]]
 
 # ▼ ▼ ▼ Race condition waiting to happen ▼ ▼ ▼
-./bocker run "$img" "sleep 5 && ps aux" &
+./bocker run "$img" "sleep 5 && echo done" &
 sleep 2
 ps="$(./bocker ps | grep 'sleep 5' | awk '{print $1}')"
-exec="$(./bocker exec "$ps" ps aux | wc -l)"
-[[ "$exec" == "4" ]]
-sleep 3
+exec="$(./bocker exec "$ps" echo hi-from-exec)"
+[[ "$exec" == 'hi-from-exec' ]]
+sleep 4
 # ▲ ▲ ▲ Race condition waiting to happen ▲ ▲ ▲
 
-./bocker run "$img" ps aux
-ps="$(./bocker ps | grep 'ps aux' | awk '{print $1}')"
-exec="$(./bocker exec "$ps" ps aux)" || true
+./bocker run "$img" "echo hi"
+ps="$(./bocker ps | grep 'echo hi' | awk '{print $1}')"
+exec="$(./bocker exec "$ps" echo x)" || true
 [[ "$exec" == "Container '$ps' exists but is not running" ]]
 
 exec="$(./bocker exec foo ps aux)" || true

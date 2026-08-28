@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail; shopt -s nullglob
-btrfs_path='/var/bocker' && cgroups='cpu,cpuacct,memory';
+btrfs_path='/var/bocker' && cgroup_path='/sys/fs/cgroup/bocker';
 [[ $# -gt 0 ]] && while [ "${1:0:2}" == '--' ]; do OPTION=${1:2}; [[ $OPTION =~ = ]] && declare "BOCKER_${OPTION/=*/}=${OPTION/*=/}" || declare "BOCKER_${OPTION}=x"; shift; done
 
 function bocker_check() {
@@ -21,14 +21,22 @@ function bocker_init() { #HELP Create an image from a directory:\nBOCKER init <d
 }
 
 function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name> <tag>
-	token="$(curl -sL -o /dev/null -D- -H 'X-Docker-Token: true' "https://index.docker.io/v1/repositories/$1/images" | tr -d '\r' | awk -F ': *' '$1 == "X-Docker-Token" { print $2 }')"
-	registry='https://registry-1.docker.io/v1'
-	id="$(curl -sL -H "Authorization: Token $token" "$registry/repositories/$1/tags/$2" | sed 's/"//g')"
-	[[ "${#id}" -ne 64 ]] && echo "No image named '$1:$2' exists" && exit 1
-	ancestry="$(curl -sL -H "Authorization: Token $token" "$registry/images/$id/ancestry")"
-	IFS=',' && ancestry=(${ancestry//[\[\] \"]/}) && IFS=' \n\t'; tmp_uuid="$(uuidgen)" && mkdir /tmp/"$tmp_uuid"
-	for id in "${ancestry[@]}"; do
-		curl -#L -H "Authorization: Token $token" "$registry/images/$id/layer" -o /tmp/"$tmp_uuid"/layer.tar
+	image="$1" && tag="$2"
+	[[ "$image" != */* ]] && image="library/$image"
+	registry='https://registry-1.docker.io/v2'
+	accept='Accept: application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.index.v1+json'
+	token="$(curl -sL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image}:pull" | jq -r '.token')"
+	manifest="$(curl -sL -H "Authorization: Bearer $token" -H "$accept" "$registry/$image/manifests/$tag")"
+	if echo "$manifest" | jq -e 'has("manifests")' > /dev/null 2>&1; then
+		digest="$(echo "$manifest" | jq -r '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64")][0].digest' 2> /dev/null || true)"
+		[[ -z "$digest" || "$digest" == 'null' ]] && echo "No linux/amd64 image for '$1:$2'" && exit 1
+		manifest="$(curl -sL -H "Authorization: Bearer $token" -H "$accept" "$registry/$image/manifests/$digest")"
+	fi
+	layers="$(echo "$manifest" | jq -r '.layers[]?.digest' 2> /dev/null || true)"
+	[[ -z "$layers" ]] && echo "No image named '$1:$2' exists" && exit 1
+	tmp_uuid="$(uuidgen)" && mkdir /tmp/"$tmp_uuid"
+	for layer in $layers; do
+		curl -#L -H "Authorization: Bearer $token" "$registry/$image/blobs/$layer" -o /tmp/"$tmp_uuid"/layer.tar
 		tar xf /tmp/"$tmp_uuid"/layer.tar -C /tmp/"$tmp_uuid" && rm /tmp/"$tmp_uuid"/layer.tar
 	done
 	echo "$1:$2" > /tmp/"$tmp_uuid"/img.source
@@ -38,7 +46,7 @@ function bocker_pull() { #HELP Pull an image from Docker Hub:\nBOCKER pull <name
 function bocker_rm() { #HELP Delete an image or container:\nBOCKER rm <image_id or container_id>
 	[[ "$(bocker_check "$1")" == 1 ]] && echo "No container named '$1' exists" && exit 1
 	btrfs subvolume delete "$btrfs_path/$1" > /dev/null
-	cgdelete -g "$cgroups:/$1" &> /dev/null || true
+	[[ -d "$cgroup_path/$1" ]] && rmdir "$cgroup_path/$1" 2> /dev/null || true
 	echo "Removed: $1"
 }
 
@@ -58,7 +66,7 @@ function bocker_ps() { #HELP List containers:\nBOCKER ps
 	done
 }
 
-function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <command>
+function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <command>\nLimits: BOCKER_CPU_WEIGHT (1-10000, default 100), BOCKER_MEM_LIMIT (MB, default 512)
 	uuid="ps_$(shuf -i 42002-42254 -n 1)"
 	[[ "$(bocker_check "$1")" == 1 ]] && echo "No image named '$1' exists" && exit 1
 	[[ "$(bocker_check "$uuid")" == 0 ]] && echo "UUID conflict, retrying..." && bocker_run "$@" && return
@@ -76,15 +84,17 @@ function bocker_run() { #HELP Create a container:\nBOCKER run <image_id> <comman
 	btrfs subvolume snapshot "$btrfs_path/$1" "$btrfs_path/$uuid" > /dev/null
 	echo 'nameserver 8.8.8.8' > "$btrfs_path/$uuid"/etc/resolv.conf
 	echo "$cmd" > "$btrfs_path/$uuid/$uuid.cmd"
-	cgcreate -g "$cgroups:/$uuid"
-	: "${BOCKER_CPU_SHARE:=512}" && cgset -r cpu.shares="$BOCKER_CPU_SHARE" "$uuid"
-	: "${BOCKER_MEM_LIMIT:=512}" && cgset -r memory.limit_in_bytes="$((BOCKER_MEM_LIMIT * 1000000))" "$uuid"
-	cgexec -g "$cgroups:$uuid" \
-		ip netns exec netns_"$uuid" \
-		unshare -fmuip --mount-proc \
-		chroot "$btrfs_path/$uuid" \
-		/bin/sh -c "/bin/mount -t proc proc /proc && $cmd" \
-		2>&1 | tee "$btrfs_path/$uuid/$uuid.log" || true
+	mkdir -p "$cgroup_path/$uuid"
+	: "${BOCKER_CPU_WEIGHT:=100}"; : "${BOCKER_MEM_LIMIT:=512}"
+	if [[ -w "$cgroup_path/$uuid/cpu.weight" ]]; then echo "$BOCKER_CPU_WEIGHT" > "$cgroup_path/$uuid/cpu.weight" || true; fi
+	if [[ -w "$cgroup_path/$uuid/memory.max" ]]; then echo "$((BOCKER_MEM_LIMIT * 1000000))" > "$cgroup_path/$uuid/memory.max" || true; fi
+	(
+		if [[ -w "$cgroup_path/$uuid/cgroup.procs" ]]; then echo "$BASHPID" > "$cgroup_path/$uuid/cgroup.procs" || true; fi
+		exec ip netns exec netns_"$uuid" \
+			unshare -fmuip --mount-proc \
+			chroot "$btrfs_path/$uuid" \
+			/bin/sh -c "/bin/mount -t proc proc /proc && $cmd"
+	) 2>&1 | tee "$btrfs_path/$uuid/$uuid.log" || true
 	ip link del dev veth0_"$uuid"
 	ip netns del netns_"$uuid"
 }

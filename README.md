@@ -1,106 +1,128 @@
 # Bocker
 Docker implemented in around 100 lines of bash.
 
+  * [Sandbox (start here)](#sandbox-start-here)
   * [Prerequisites](#prerequisites)
   * [Example Usage](#example-usage)
   * [Functionality: Currently Implemented](#functionality-currently-implemented)
   * [Functionality: Not Yet Implemented](#functionality-not-yet-implemented)
+  * [What changed from upstream](#what-changed-from-upstream)
   * [License](#license)
+
+## Sandbox (start here)
+
+Bocker runs as **root** and rewrites your network interfaces, routing table,
+firewall rules, cgroups and mount table. **Do not run it on a machine you care
+about** — the upstream author's warning stands: *"I can make no guarantees that
+it won't trash your system"*.
+
+Use the bundled VM. A container runtime (Docker, Podman, distrobox, toolbox) is
+**not** a safe substitute: bocker manipulates the host kernel's netfilter,
+bridges and cgroup hierarchy directly, so a privileged container would put your
+real host at risk and an unprivileged one can't run bocker at all. A throwaway
+VM is the right blast radius — a mistake costs you a `vagrant destroy`.
+
+```sh
+vagrant up                      # needs vagrant + libvirt (or VirtualBox)
+vagrant ssh
+sudo bocker pull alpine 3.19
+sudo bocker run img_XXXXX /bin/echo 'Hello from bocker'
+```
+
+Run the test suite inside the VM:
+
+```sh
+sudo -i
+cd /vagrant && ./test
+```
 
 ## Prerequisites
 
-The following packages are needed to run bocker.
+If you are not using the Vagrant box, you need:
 
 * btrfs-progs
 * curl
 * iproute2
 * iptables
-* libcgroup-tools
-* util-linux >= 2.25.2
+* jq
+* uuid-runtime (`uuidgen`)
+* util-linux >= 2.25.2  (any current distro is fine; 22.04 ships 2.37)
 * coreutils >= 7.5
+* A cgroup **v2** hierarchy (the default on every current distro)
 
-Because most distributions do not ship a new enough version of util-linux you will probably need to grab the sources from [here](https://www.kernel.org/pub/linux/utils/util-linux/v2.25/) and compile it yourself.
-
-Additionally your system will need to be configured with the following:
+Additionally your system needs:
 
 * A btrfs filesystem mounted under `/var/bocker`
-* A network bridge called `bridge0` and an IP of 10.0.0.1/24
+* A cgroup v2 subtree at `/sys/fs/cgroup/bocker` with the `cpu` and `memory`
+  controllers delegated
+* A network bridge called `bridge0` with an IP of `10.0.0.1/24`
 * IP forwarding enabled in `/proc/sys/net/ipv4/ip_forward`
-* A firewall routing traffic from `bridge0` to a physical interface.
+* A firewall rule masquerading traffic from `10.0.0.0/24` onto a physical
+  interface
 
-For ease of use a Vagrantfile is included which will build the needed environment.
-
-Even if you meet the above prerequisites you probably still want to **run bocker in a virtual machine**. Bocker runs as root and among other things needs to make changes to your network interfaces, routing table, and firewall rules. **I can make no guarantees that it won't trash your system**.
+The included `Vagrantfile` builds all of this on Ubuntu 22.04.
 
 ## Example Usage
 
 ```
-$ bocker pull centos 7
-######################################################################## 100.0%
-######################################################################## 100.0%
-######################################################################## 100.0%
-Created: img_42150
+$ bocker pull alpine 3.19
+#################################################################### 100.0%
+Created: img_5514
 
 $ bocker images
 IMAGE_ID        SOURCE
-img_42150       centos:7
+img_5514        alpine:3.19
 
-$ bocker run img_42150 cat /etc/centos-release
-CentOS Linux release 7.1.1503 (Core)
-
-$ bocker ps
-CONTAINER_ID       COMMAND
-ps_42045           cat /etc/centos-release
-
-$ bocker logs ps_42045
-CentOS Linux release 7.1.1503 (Core)
-
-$ bocker rm ps_42045
-Removed: ps_42045
-
-$ bocker run img_42150 which wget
-which: no wget in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin)
-
-$ bocker run img_42150 yum install -y wget
-Installing : wget-1.14-10.el7_0.1.x86_64                                  1/1
-Verifying  : wget-1.14-10.el7_0.1.x86_64                                  1/1
-Installed  : wget.x86_64 0:1.14-10.el7_0.1
-Complete!
+$ bocker run img_5514 cat /etc/alpine-release
+3.19.1
 
 $ bocker ps
 CONTAINER_ID       COMMAND
-ps_42018           yum install -y wget
-ps_42182           which wget
+ps_5514            cat /etc/alpine-release
 
-$ bocker commit ps_42018 img_42150
-Removed: img_42150
-Created: img_42150
+$ bocker logs ps_5514
+3.19.1
 
-$ bocker run img_42150 which wget
-/usr/bin/wget
+$ bocker rm ps_5514
+Removed: ps_5514
 
-$ bocker run img_42150 cat /proc/1/cgroup
-...
-4:memory:/ps_42152
-3:cpuacct,cpu:/ps_42152
+$ bocker run img_5514 which curl
+which: no curl in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin)
 
-$ cat /sys/fs/cgroup/cpu/ps_42152/cpu.shares
-512
+$ bocker run img_5514 apk add --no-cache curl
+(1/5) Installing ca-certificates ...
+(5/5) Installing curl ...
+OK: 12 MiB in 19 packages
 
-$ cat /sys/fs/cgroup/memory/ps_42152/memory.limit_in_bytes
+$ bocker ps
+CONTAINER_ID       COMMAND
+ps_5502            apk add --no-cache curl
+ps_5418            which curl
+
+$ bocker commit ps_5502 img_5514
+Removed: img_5514
+Created: img_5514
+
+$ bocker run img_5514 which curl
+/usr/bin/curl
+
+$ bocker run img_5514 cat /proc/1/cgroup
+0::/
+
+$ cat /sys/fs/cgroup/bocker/ps_5188/cpu.weight
+100
+
+$ cat /sys/fs/cgroup/bocker/ps_5188/memory.max
 512000000
 
-$ BOCKER_CPU_SHARE=1024 \
-	BOCKER_MEM_LIMIT=1024 \
-	bocker run img_42150 cat /proc/1/cgroup
-...
-4:memory:/ps_42188
-3:cpuacct,cpu:/ps_42188
+$ BOCKER_CPU_WEIGHT=200 \
+    BOCKER_MEM_LIMIT=1024 \
+    bocker run img_5514 sleep 30 &
 
-$ cat /sys/fs/cgroup/cpu/ps_42188/cpu.shares
-1024
+$ cat /sys/fs/cgroup/bocker/ps_5219/cpu.weight
+200
 
-$ cat /sys/fs/cgroup/memory/ps_42188/memory.limit_in_bytes
+$ cat /sys/fs/cgroup/bocker/ps_5219/memory.max
 1024000000
 ```
 
@@ -125,6 +147,25 @@ $ cat /sys/fs/cgroup/memory/ps_42188/memory.limit_in_bytes
 * Data Volume Containers
 * Data Volumes
 * Port Forwarding
+
+## What changed from upstream
+
+The original 2015 project targeted CentOS 7 and has bit-rotted. This fork keeps
+the ~100-line spirit but makes it run today:
+
+* **VM**: CentOS 7 → Ubuntu 22.04. util-linux 2.37 ships in the distro, so the
+  hand-compilation of `unshare` is gone.
+* **cgroups**: cgroup v1 (`cpu,cpuacct,memory` via `libcgroup-tools`) →
+  cgroup v2. `bocker run` now writes `cpu.weight` / `memory.max` under
+  `/sys/fs/cgroup/bocker/<id>` directly. The `BOCKER_CPU_SHARE` env var is now
+  `BOCKER_CPU_WEIGHT` (range 1–10000, default 100).
+* **pull**: Docker Registry **v1** API (shut down years ago) → Registry **v2**
+  with token auth and multi-arch manifest handling. Requires `jq`.
+* **base image**: `docker save centos | undocker` → the Alpine mini rootfs is
+  unpacked straight into `~/base-image`, no Docker in the loop.
+* **firewall**: no more `iptables --flush`; NAT/forward rules are added
+  idempotently and scoped to `10.0.0.0/24`, and the external interface is
+  detected from the default route instead of being hard-coded.
 
 ## License
 
