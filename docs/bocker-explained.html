@@ -1,0 +1,671 @@
+<!doctype html>
+<title>Giải Phẫu Bocker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#EDF0F1;
+    --panel:#E1E5E6;
+    --panel-2:#D6DBDC;
+    --ink:#1A2023;
+    --ink-soft:#4B5559;
+    --line:#C6CCCD;
+    --accent:#B85A26;
+    --accent-ink:#7A3B18;
+    --accent-soft:#E8D2BE;
+    --code-ink:#2A3236;
+    --font-display:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+    --font-body:'IBM Plex Serif',Georgia,'Times New Roman',serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+    --measure:64ch;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#14181B;
+      --panel:#1C2124;
+      --panel-2:#23292C;
+      --ink:#E7E9E8;
+      --ink-soft:#A7B0B2;
+      --line:#333B3E;
+      --accent:#E08A4C;
+      --accent-ink:#F2B784;
+      --accent-soft:#3A2A1D;
+      --code-ink:#DCE1E2;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#14181B;
+    --panel:#1C2124;
+    --panel-2:#23292C;
+    --ink:#E7E9E8;
+    --ink-soft:#A7B0B2;
+    --line:#333B3E;
+    --accent:#E08A4C;
+    --accent-ink:#F2B784;
+    --accent-soft:#3A2A1D;
+    --code-ink:#DCE1E2;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:17px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+  a{ color:var(--accent-ink); }
+  h1,h2,h3{ font-family:var(--font-display); text-wrap:balance; margin:0; color:var(--ink); }
+  code, .mono{ font-family:var(--font-mono); }
+  p{ margin:0 0 1em; }
+  p:last-child{ margin-bottom:0; }
+
+  .wrap{ max-width:900px; margin:0 auto; padding:0 24px 96px; }
+
+  /* ---------- masthead (man-page motif) ---------- */
+  .manbar{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    padding:14px 24px;
+    border-bottom:1px solid var(--line);
+    text-transform:uppercase;
+  }
+  .manbar span:nth-child(2){ color:var(--ink-soft); }
+
+  header.masthead{
+    max-width:900px;
+    margin:0 auto;
+    padding:56px 24px 40px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--accent-ink);
+    display:flex;
+    align-items:center;
+    gap:.6em;
+    margin-bottom:18px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:22px; height:1px;
+    background:var(--accent);
+    display:inline-block;
+  }
+  h1.title{
+    font-size:clamp(2.4rem, 1.9rem + 2.2vw, 3.6rem);
+    font-weight:700;
+    letter-spacing:-.01em;
+    line-height:1.02;
+    margin-bottom:18px;
+  }
+  .dek{
+    font-family:var(--font-body);
+    font-size:1.2rem;
+    line-height:1.55;
+    color:var(--ink-soft);
+    max-width:52ch;
+    margin-bottom:28px;
+  }
+  .dek em{ color:var(--ink); font-style:normal; border-bottom:1px solid var(--accent); }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px 28px;
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .meta-row b{ color:var(--ink); font-weight:600; }
+
+  /* ---------- sections ---------- */
+  main{ padding-top:8px; }
+  section{ padding:56px 24px; border-bottom:1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+  .section-inner{ max-width:900px; margin:0 auto; }
+  .section-head{
+    display:grid;
+    grid-template-columns:200px 1fr;
+    gap:32px;
+    margin-bottom:28px;
+  }
+  .section-num{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--ink-soft);
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding-top:.3em;
+  }
+  h2.section-title{ font-size:1.65rem; font-weight:600; }
+  .prose{ max-width:var(--measure); }
+  .prose + .prose{ margin-top:1em; }
+
+  @media (max-width:720px){
+    .section-head{ grid-template-columns:1fr; gap:8px; }
+  }
+
+  /* ---------- primitives table ---------- */
+  .table-scroll{ overflow-x:auto; }
+  table.primitives{
+    width:100%;
+    border-collapse:collapse;
+    font-size:.95rem;
+    min-width:560px;
+  }
+  table.primitives caption{ text-align:left; }
+  table.primitives th, table.primitives td{
+    text-align:left;
+    padding:12px 16px 12px 0;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  table.primitives th{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    font-weight:500;
+    border-bottom:1px solid var(--ink-soft);
+  }
+  table.primitives td.k{ font-family:var(--font-mono); color:var(--accent-ink); white-space:nowrap; font-size:.88rem; }
+  table.primitives td.cmd{ font-family:var(--font-mono); font-size:.85rem; color:var(--code-ink); white-space:nowrap; }
+  table.primitives tr:last-child td{ border-bottom:none; }
+
+  /* ---------- code panels ---------- */
+  .code-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    border-radius:2px;
+    margin:20px 0;
+    overflow-x:auto;
+  }
+  .code-panel .sig{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    padding:10px 18px;
+    border-bottom:1px solid var(--line);
+    letter-spacing:.02em;
+  }
+  .code-panel .sig b{ color:var(--accent-ink); font-weight:600; }
+  .code-panel pre{
+    margin:0;
+    padding:16px 18px 18px;
+    font-family:var(--font-mono);
+    font-size:13px;
+    line-height:1.65;
+    color:var(--code-ink);
+    white-space:pre;
+  }
+  .note{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--ink-soft);
+    padding:10px 14px;
+    border-top:1px dashed var(--line);
+    background:var(--panel-2);
+  }
+  .note b{ color:var(--accent-ink); font-weight:600; }
+
+  /* ---------- function cards ---------- */
+  .fn-card{ margin-bottom:44px; }
+  .fn-card:last-child{ margin-bottom:0; }
+  .fn-head{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  .fn-name{
+    font-family:var(--font-mono);
+    font-size:1.15rem;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .fn-tag{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--accent-ink);
+    background:var(--accent-soft);
+    padding:3px 8px;
+    border-radius:2px;
+  }
+  .fn-line{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft); }
+
+  ol.steps{ margin:0; padding-left:1.3em; max-width:var(--measure); }
+  ol.steps li{ margin-bottom:.55em; }
+  ol.steps li:last-child{ margin-bottom:0; }
+
+  /* ---------- diagrams ---------- */
+  figure.diagram{ margin:32px 0 0; }
+  .svg-scroll{
+    overflow-x:auto;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:18px;
+  }
+  .svg-scroll svg{ display:block; min-width:640px; width:100%; height:auto; color:var(--ink); }
+  figcaption{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:10px;
+    max-width:var(--measure);
+  }
+  figcaption b{ color:var(--ink); font-weight:600; }
+
+  /* ---------- lessons list ---------- */
+  .lessons{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:22px; max-width:var(--measure); }
+  .lessons li{ display:grid; grid-template-columns:2.4em 1fr; gap:14px; }
+  .lessons .n{ font-family:var(--font-mono); color:var(--accent-ink); font-weight:600; font-size:1rem; padding-top:.15em; }
+  .lessons h3{ font-size:1.02rem; font-weight:600; margin-bottom:.3em; }
+  .lessons p{ color:var(--ink-soft); font-size:.97rem; }
+
+  .missing-box{
+    margin-top:36px;
+    border:1px solid var(--line);
+    border-left:3px solid var(--ink-soft);
+    background:var(--panel);
+    padding:20px 22px;
+    max-width:var(--measure);
+  }
+  .missing-box h3{ font-size:1rem; margin-bottom:10px; }
+  .missing-box ul{ margin:0; padding-left:1.2em; color:var(--ink-soft); font-size:.95rem; }
+  .missing-box li{ margin-bottom:.4em; }
+  .missing-box li:last-child{ margin-bottom:0; }
+  .missing-box code{ color:var(--code-ink); }
+
+  footer.manbar-foot{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    padding:20px 24px;
+    border-top:1px solid var(--line);
+    text-transform:uppercase;
+  }
+
+  @media (prefers-reduced-motion:no-preference){
+    .fn-card{ animation:none; }
+  }
+</style>
+
+<div class="manbar">
+  <span>BOCKER(1)</span>
+  <span>CONTAINER RUNTIME MANUAL</span>
+  <span>BOCKER(1)</span>
+</div>
+
+<header class="masthead">
+  <div class="eyebrow">Đọc script, không đọc slide</div>
+  <h1 class="title">Giải Phẫu Bocker</h1>
+  <p class="dek">Toàn bộ <code>bocker</code> chỉ hơn 100 dòng Bash — không daemon, không binary riêng. Nó chạy được vì Linux kernel <em>đã có sẵn</em> mọi thứ cần thiết; bocker chỉ là lớp gọi lệnh mỏng phía trên.</p>
+  <div class="meta-row">
+    <span><b>FILE</b> bocker</span>
+    <span><b>NGÔN NGỮ</b> Bash + coreutils</span>
+    <span><b>KERNEL</b> btrfs · namespaces · cgroup v2</span>
+    <span><b>GỐC</b> Peter Wilmott, 2015 — bản này cho Ubuntu 22.04</span>
+  </div>
+</header>
+
+<main>
+
+  <section id="primitives">
+    <div class="section-inner">
+      <div class="section-head">
+        <div class="section-num">01 — Nền tảng</div>
+        <h2 class="section-title">Năm nguyên hàm kernel</h2>
+      </div>
+      <div class="prose">
+        <p>Bocker không tự phát minh cơ chế cô lập nào. Mỗi "tính năng Docker" trong nó là một lời gọi trực tiếp tới một cơ chế đã nằm sẵn trong kernel Linux từ lâu. Đây là bảng tra cứu dùng xuyên suốt phần còn lại của trang.</p>
+      </div>
+      <div class="table-scroll" style="margin-top:24px;">
+        <table class="primitives">
+          <thead>
+            <tr><th>Nguyên hàm kernel</th><th>Lệnh trong bocker</th><th>Vai trò</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="k">btrfs subvolume</td>
+              <td class="cmd">btrfs subvolume create / snapshot</td>
+              <td>Filesystem copy-on-write, phân lớp → chính là "image layer"</td>
+            </tr>
+            <tr>
+              <td class="k">network namespace</td>
+              <td class="cmd">ip netns · veth · bridge0</td>
+              <td>Cho container một stack mạng riêng, nối vào host qua cáp ảo</td>
+            </tr>
+            <tr>
+              <td class="k">namespaces khác</td>
+              <td class="cmd">unshare -fmuip</td>
+              <td>Cô lập mount table, hostname, IPC, cây PID</td>
+            </tr>
+            <tr>
+              <td class="k">chroot</td>
+              <td class="cmd">chroot $btrfs_path/$uuid</td>
+              <td>Đổi thư mục gốc "/" mà process nhìn thấy</td>
+            </tr>
+            <tr>
+              <td class="k">cgroup v2</td>
+              <td class="cmd">cpu.weight · memory.max</td>
+              <td>Giới hạn CPU và RAM cho toàn bộ cây process</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="storage">
+    <div class="section-inner">
+      <div class="section-head">
+        <div class="section-num">02 — Lưu trữ</div>
+        <h2 class="section-title">Image, container và commit chỉ là một thao tác</h2>
+      </div>
+      <div class="prose">
+        <p>Không có "định dạng image" đặc biệt. Một image bocker là một <b>btrfs subvolume</b> chứa nguyên một cây thư mục rootfs. <code>bocker run</code> tạo container bằng cách <b>snapshot</b> subvolume đó — copy-on-write, gần như tức thì, chỉ ghi phần khác biệt xuống đĩa. <code>bocker commit</code> làm ngược lại: snapshot container đang có thành một image mới.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="svg-scroll">
+          <svg viewBox="0 0 900 190" role="img" aria-label="Sơ đồ: image img_A được snapshot copy-on-write thành container ps_X ghi được, rồi commit snapshot ngược lại thành image img_B mới">
+            <defs>
+              <marker id="arrow1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+            <!-- box 1: source image -->
+            <rect x="20" y="50" width="200" height="82" fill="none" stroke="currentColor" stroke-width="1.4" rx="2"/>
+            <text x="120" y="86" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" font-weight="600" fill="currentColor">img_A</text>
+            <text x="120" y="108" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".62">rootfs, read-only</text>
+
+            <!-- arrow 1 -->
+            <line x1="222" y1="91" x2="326" y2="91" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+            <text x="274" y="76" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">bocker run</text>
+            <text x="274" y="105" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".62">snapshot (COW)</text>
+
+            <!-- box 2: container, accent -->
+            <rect x="330" y="50" width="220" height="82" fill="none" stroke="#B85A26" stroke-width="1.8" rx="2"/>
+            <text x="440" y="86" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" font-weight="600" fill="#B85A26">ps_X</text>
+            <text x="440" y="108" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#B85A26" opacity=".75">subvolume, ghi được</text>
+
+            <!-- arrow 2 -->
+            <line x1="552" y1="91" x2="656" y2="91" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+            <text x="604" y="76" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">bocker commit</text>
+            <text x="604" y="105" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".62">snapshot ngược</text>
+
+            <!-- box 3: new image -->
+            <rect x="660" y="50" width="200" height="82" fill="none" stroke="currentColor" stroke-width="1.4" rx="2"/>
+            <text x="760" y="86" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" font-weight="600" fill="currentColor">img_B</text>
+            <text x="760" y="108" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".62">image mới, đóng băng</text>
+          </svg>
+        </div>
+        <figcaption><b>Toàn bộ vòng đời image/container là một phép btrfs snapshot lặp lại.</b> Không copy dữ liệu, không build layer riêng — chỉ trỏ lại con trỏ copy-on-write.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="reference">
+    <div class="section-inner">
+      <div class="section-head">
+        <div class="section-num">03 — Tham chiếu hàm</div>
+        <h2 class="section-title">Từng hàm trong bocker</h2>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_check()</span>
+          <span class="fn-tag">nội bộ</span>
+        </div>
+        <div class="prose">
+          <p>"Cơ sở dữ liệu" của bocker không phải một file JSON hay SQLite nào cả — nó chính là kết quả của <code>btrfs subvolume list</code>. Hàm này chỉ hỏi kernel: id này có tồn tại trên đĩa không.</p>
+        </div>
+        <div class="code-panel">
+          <div class="sig">btrfs subvolume list "$btrfs_path" | grep -qw "$1" → 0 nếu có, 1 nếu không</div>
+        </div>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_init()</span>
+          <span class="fn-tag">image</span>
+        </div>
+        <div class="fn-line">bocker init &lt;directory&gt;</div>
+        <div class="prose" style="margin-top:10px;">
+          <p>Biến một thư mục local thành image: sinh id ngẫu nhiên <code>img_42xxx</code>, tạo subvolume mới bằng <code>btrfs subvolume create</code>, rồi <code>cp --reflink=auto</code> nội dung vào — reflink nghĩa là copy-on-write, gần như không tốn thêm dung lượng đĩa. Đây là "build" thô sơ nhất có thể tưởng tượng.</p>
+        </div>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_pull()</span>
+          <span class="fn-tag">image</span>
+        </div>
+        <div class="fn-line">bocker pull &lt;name&gt; &lt;tag&gt;</div>
+        <div class="prose" style="margin-top:10px;">
+          <p>Nói chuyện thẳng với Docker Registry HTTP API v2 — không cần Docker daemon nào cả:</p>
+        </div>
+        <ol class="steps">
+          <li>Xin <b>token</b> ẩn danh từ <code class="mono">auth.docker.io</code>.</li>
+          <li>Lấy <b>manifest</b> (JSON mô tả image); nếu là manifest-list đa kiến trúc, chọn nhánh <code class="mono">linux/amd64</code>.</li>
+          <li>Đọc danh sách <b>layer digest</b> — mỗi layer là một blob <code class="mono">.tar.gz</code>.</li>
+          <li>Tải từng layer, giải nén <em>chồng lên nhau</em> vào cùng một thư mục.</li>
+          <li>Gọi lại <code class="mono">bocker_init</code> để biến thư mục đó thành image.</li>
+        </ol>
+        <div class="note" style="margin-top:14px; border:1px solid var(--line); border-left:3px solid var(--accent);">Kéo image thật ra chỉ là: tải vài file tar, giải nén đè lên nhau. "Layer" không hơn gì một bản diff nén.</div>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_rm() · bocker_images() · bocker_ps()</span>
+          <span class="fn-tag">sổ sách</span>
+        </div>
+        <div class="prose" style="margin-top:10px;">
+          <p><code>rm</code> xoá image lẫn container theo cùng một cách — <code>btrfs subvolume delete</code> — vì cả hai vốn là cùng một loại đối tượng. <code>images</code> và <code>ps</code> chỉ <code>ls</code> các subvolume theo tiền tố (<code>img_*</code> / <code>ps_*</code>) rồi <code>cat</code> một file metadata cạnh nó. Không có daemon giữ trạng thái trong bộ nhớ — <b>filesystem chính là trạng thái</b>.</p>
+        </div>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_run()</span>
+          <span class="fn-tag">trái tim</span>
+        </div>
+        <div class="fn-line">bocker run &lt;image_id&gt; &lt;command&gt;</div>
+        <div class="prose" style="margin-top:10px;">
+          <p>Đây là hàm dài nhất và cũng là câu trả lời thật sự cho "container là gì". Bốn nhóm việc, theo đúng thứ tự trong code:</p>
+        </div>
+        <ol class="steps">
+          <li><b>Mạng</b> — tạo cặp <code class="mono">veth</code> (như một sợi cáp ảo hai đầu): một đầu cắm vào <code class="mono">bridge0</code> của host, đầu kia đẩy vào network namespace mới của container; gán IP <code class="mono">10.0.0.X/24</code>.</li>
+          <li><b>Filesystem</b> — <code class="mono">btrfs subvolume snapshot</code> từ image sang container (xem sơ đồ ở mục 02); ghi <code class="mono">resolv.conf</code> và file lệnh.</li>
+          <li><b>Giới hạn tài nguyên</b> — tạo thư mục cgroup, ghi <code class="mono">cpu.weight</code> / <code class="mono">memory.max</code>, rồi nhét PID hiện tại vào <code class="mono">cgroup.procs</code>.</li>
+          <li><b>Cô lập &amp; thực thi</b> — vào network namespace, <code class="mono">unshare -fmuip</code> để tạo namespace mount/uts/ipc/pid mới, <code class="mono">chroot</code> đổi gốc filesystem, rồi mới chạy lệnh của bạn.</li>
+        </ol>
+
+        <figure class="diagram">
+          <div class="svg-scroll">
+            <svg viewBox="0 0 900 520" role="img" aria-label="Sơ đồ lồng nhau: process của bocker run bị bao bởi cgroup, bên trong đó là network namespace nhận cáp veth từ bridge0 của host, bên trong đó là các namespace mount/uts/ipc/pid từ unshare, bên trong đó là chroot đổi gốc filesystem, và trong cùng là lệnh $cmd thực sự chạy">
+              <defs>
+                <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+                </marker>
+              </defs>
+
+              <!-- L0 host -->
+              <rect x="16" y="16" width="868" height="488" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" rx="2"/>
+              <text x="30" y="36" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="0.06em" fill="currentColor" opacity=".7">HOST — process gốc bocker_run</text>
+
+              <!-- bridge0 -->
+              <rect x="40" y="54" width="130" height="42" fill="none" stroke="currentColor" stroke-width="1.2" rx="2"/>
+              <text x="105" y="72" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="currentColor">bridge0</text>
+              <text x="105" y="87" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".6">10.0.0.1/24</text>
+
+              <!-- L1 cgroup -->
+              <rect x="190" y="98" width="654" height="380" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 5" rx="2"/>
+              <text x="204" y="120" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="currentColor">cgroup: ps_XXXX</text>
+              <text x="204" y="134" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".62">cpu.weight · memory.max</text>
+
+              <!-- L2 netns -->
+              <rect x="222" y="150" width="590" height="300" fill="none" stroke="currentColor" stroke-width="1.2" rx="2"/>
+              <text x="236" y="170" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="currentColor">netns_ps_XXXX</text>
+
+              <!-- veth1 -->
+              <rect x="236" y="182" width="132" height="34" fill="none" stroke="#B85A26" stroke-width="1.4" rx="2"/>
+              <text x="302" y="203" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#B85A26">veth1 · 10.0.0.X</text>
+
+              <!-- veth wire from bridge0 to veth1 -->
+              <path d="M170,75 L205,75 L205,199 L236,199" fill="none" stroke="#B85A26" stroke-width="1.4" marker-end="url(#arrow2)"/>
+              <text x="176" y="66" font-family="IBM Plex Mono, monospace" font-size="10" fill="#B85A26">cặp veth</text>
+
+              <!-- L3 unshare -->
+              <rect x="254" y="232" width="526" height="192" fill="none" stroke="currentColor" stroke-width="1.2" rx="2"/>
+              <text x="268" y="253" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="currentColor">unshare -fmuip</text>
+              <text x="268" y="267" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".62">mount · uts · ipc · pid</text>
+
+              <!-- L4 chroot -->
+              <rect x="286" y="285" width="462" height="112" fill="none" stroke="currentColor" stroke-width="1.2" rx="2"/>
+              <text x="300" y="305" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="currentColor">chroot → btrfs/ps_XXXX</text>
+
+              <!-- L5 cmd -->
+              <rect x="326" y="326" width="222" height="48" fill="#B85A26" fill-opacity="0.14" stroke="#B85A26" stroke-width="1.8" rx="2"/>
+              <text x="437" y="355" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#B85A26">$cmd</text>
+            </svg>
+          </div>
+          <figcaption><b>Đây không phải sơ đồ tuần tự — là sơ đồ bao chứa.</b> <code class="mono">$cmd</code> là một process Linux bình thường, chỉ đang chạy dưới bốn lớp giới hạn kernel cùng lúc: cgroup (tài nguyên), netns (mạng), unshare (mount/hostname/IPC/PID), chroot (gốc filesystem). Bỏ một lớp bất kỳ, nó vẫn chạy — chỉ là kém "cô lập" hơn.</figcaption>
+        </figure>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_exec()</span>
+          <span class="fn-tag">runtime</span>
+        </div>
+        <div class="fn-line">bocker exec &lt;container_id&gt; &lt;command&gt;</div>
+        <div class="prose" style="margin-top:10px;">
+          <p>Ngược lại với <code>unshare</code>. Bocker dò qua <code>ps -eo pid,args</code> để tìm PID của tiến trình <code class="mono">unshare -fmuip</code> đang đại diện container, lấy PID con thật sự của nó, rồi dùng <code class="mono">nsenter -t &lt;pid&gt; -muinp chroot ...</code> để "nhảy vào" đúng các namespace đã tồn tại thay vì tạo namespace mới.</p>
+        </div>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_logs()</span>
+          <span class="fn-tag">runtime</span>
+        </div>
+        <div class="prose" style="margin-top:10px;">
+          <p><code>cat</code> một file <code class="mono">.log</code> mà <code>bocker_run</code> đã ghi bằng <code class="mono">tee</code> khi container chạy. <code>docker logs</code> thật cũng không khác về nguyên lý — chỉ là daemon hứng stdout/stderr thay vì shell.</p>
+        </div>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_commit()</span>
+          <span class="fn-tag">image</span>
+        </div>
+        <div class="fn-line">bocker commit &lt;container_id&gt; &lt;image_id&gt;</div>
+        <div class="prose" style="margin-top:10px;">
+          <p>Xoá image đích, rồi <code class="mono">btrfs subvolume snapshot</code> từ container thành image mới cùng tên (xem sơ đồ mục 02). Một trạng thái container tạm thời trở thành image tái sử dụng được — chỉ bằng một phép snapshot.</p>
+        </div>
+      </div>
+
+      <div class="fn-card">
+        <div class="fn-head">
+          <span class="fn-name">bocker_help() &amp; dispatcher</span>
+          <span class="fn-tag">CLI</span>
+        </div>
+        <div class="prose" style="margin-top:10px;">
+          <p><code>bocker_help</code> trích các comment <code class="mono">#HELP</code> ngay trong chính file script bằng <code class="mono">sed</code> — tài liệu tự sinh từ code, không có file riêng để lệch pha. Ở cuối file, một khối <code class="mono">case $1 in ...</code> map trực tiếp <code class="mono">bocker &lt;verb&gt;</code> sang hàm <code class="mono">bocker_&lt;verb&gt;</code> — toàn bộ "CLI framework" chỉ có vậy.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="lessons">
+    <div class="section-inner">
+      <div class="section-head">
+        <div class="section-num">04 — Rút ra</div>
+        <h2 class="section-title">Học được gì để hiểu Docker</h2>
+      </div>
+
+      <ul class="lessons">
+        <li>
+          <span class="n">01</span>
+          <div>
+            <h3>Image là một cây thư mục, không phải định dạng bí ẩn</h3>
+            <p>rootfs + một chút metadata. Docker thêm layer riêng biệt (overlay2) và checksum, nhưng bản chất không đổi.</p>
+          </div>
+        </li>
+        <li>
+          <span class="n">02</span>
+          <div>
+            <h3>Layer là tarball</h3>
+            <p>Pull = tải vài file <code class="mono">.tar.gz</code> theo digest rồi giải nén chồng lên nhau. Registry chỉ là REST API trước một kho blob.</p>
+          </div>
+        </li>
+        <li>
+          <span class="n">03</span>
+          <div>
+            <h3>Container không phải máy ảo</h3>
+            <p>Nó là một process của host, chỉ bị bọc bởi namespaces (tầm nhìn), cgroups (tài nguyên) và chroot/pivot_root (gốc filesystem) — như sơ đồ mục 03.</p>
+          </div>
+        </li>
+        <li>
+          <span class="n">04</span>
+          <div>
+            <h3>Copy-on-write là lý do container khởi động nhanh</h3>
+            <p><code class="mono">docker run</code> không copy image — nó snapshot. Bocker dùng btrfs; Docker thật thường dùng overlay2, cùng một ý tưởng.</p>
+          </div>
+        </li>
+        <li>
+          <span class="n">05</span>
+          <div>
+            <h3>Mạng container = veth pair + bridge + NAT</h3>
+            <p><code class="mono">docker0</code> của Docker chính là <code class="mono">bridge0</code> ở đây — không có gì thêm về nguyên lý.</p>
+          </div>
+        </li>
+        <li>
+          <span class="n">06</span>
+          <div>
+            <h3>Daemon không phải phần lõi</h3>
+            <p>Nó cộng thêm: API, quản lý vòng đời, build cache, phân phối image, giám sát an ninh — nhưng phần "chạy container" thì đúng như <code class="mono">bocker_run</code>.</p>
+          </div>
+        </li>
+      </ul>
+
+      <div class="missing-box">
+        <h3>Những gì bocker cố tình bỏ qua</h3>
+        <ul>
+          <li>User namespace / rootless — bocker bắt buộc chạy <code>root</code>, không có <code>-U</code> trong lệnh <code>unshare</code>.</li>
+          <li>seccomp, AppArmor, Linux capabilities — không giảm quyền syscall nào cho container.</li>
+          <li>Overlayfs nhiều lớp thật sự — bocker làm phẳng mọi layer khi giải nén, không giữ chúng tách biệt.</li>
+          <li><code>pivot_root</code> thay vì <code>chroot</code> — <code>chroot</code> vẫn có thể thoát ra được trong một số điều kiện; production runtime dùng <code>pivot_root</code>.</li>
+          <li>Healthcheck, restart policy, volume driver, image signing.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="manbar-foot">
+  <span>bocker(1)</span>
+  <span>Xem thêm: README.md · Vagrantfile</span>
+  <span>2026</span>
+</footer>
